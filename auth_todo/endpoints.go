@@ -128,3 +128,23 @@ func makeCompleteTodoEndpoint(svc TodoService) endpoint.Endpoint {
 		return completeTodoResponse{}, nil
 	}
 }
+
+type Endpoints struct {
+	SignupEndpoint        endpoint.Endpoint
+	LoginEndpoint         endpoint.Endpoint
+	ValidateTokenEndpoint endpoint.Endpoint
+	CreateTodoEndpoint    endpoint.Endpoint
+	ListTodosEndpoint     endpoint.Endpoint
+	CompleteTodoEndpoint  endpoint.Endpoint
+}
+
+func MakeEndpoints(authSvc AuthService, todoSvc TodoService) Endpoints {
+	return Endpoints{
+		SignupEndpoint:        makeSignupEndpoint(authSvc),
+		LoginEndpoint:         makeLoginEndpoint(authSvc),
+		ValidateTokenEndpoint: makeValidateTokenEndpoint(authSvc),
+		CreateTodoEndpoint:    makeCreateTodoEndpoint(todoSvc),
+		ListTodosEndpoint:     makeListTodosEndpoint(todoSvc),
+		CompleteTodoEndpoint:  makeCompleteTodoEndpoint(todoSvc),
+	}
+}

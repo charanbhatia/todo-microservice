@@ -72,51 +72,50 @@ func encodeResponse(_ context.Context, w http.ResponseWriter, response interface
 	return json.NewEncoder(w).Encode(response)
 }
 
-func MakeHTTPHandler(authSvc AuthService, todoSvc TodoService) http.Handler {
-	r := mux.NewRouter()
-
-	signupHandler := httptransport.NewServer(
-		makeSignupEndpoint(authSvc),
+func MakeSignupHandler(endpoints Endpoints) http.Handler {
+	return httptransport.NewServer(
+		endpoints.SignupEndpoint,
 		decodeSignupRequest,
 		encodeResponse,
 	)
+}
 
-	loginHandler := httptransport.NewServer(
-		makeLoginEndpoint(authSvc),
+func MakeLoginHandler(endpoints Endpoints) http.Handler {
+	return httptransport.NewServer(
+		endpoints.LoginEndpoint,
 		decodeLoginRequest,
 		encodeResponse,
 	)
+}
 
-	validateTokenHandler := httptransport.NewServer(
-		makeValidateTokenEndpoint(authSvc),
+func MakeValidateTokenHandler(endpoints Endpoints) http.Handler {
+	return httptransport.NewServer(
+		endpoints.ValidateTokenEndpoint,
 		decodeValidateTokenRequest,
 		encodeResponse,
 	)
+}
 
-	createTodoHandler := httptransport.NewServer(
-		makeCreateTodoEndpoint(todoSvc),
+func MakeCreateTodoHandler(endpoints Endpoints) http.Handler {
+	return httptransport.NewServer(
+		endpoints.CreateTodoEndpoint,
 		decodeCreateTodoRequest,
 		encodeResponse,
 	)
+}
 
-	listTodosHandler := httptransport.NewServer(
-		makeListTodosEndpoint(todoSvc),
+func MakeListTodosHandler(endpoints Endpoints) http.Handler {
+	return httptransport.NewServer(
+		endpoints.ListTodosEndpoint,
 		decodeListTodosRequest,
 		encodeResponse,
 	)
+}
 
-	completeTodoHandler := httptransport.NewServer(
-		makeCompleteTodoEndpoint(todoSvc),
+func MakeCompleteTodoHandler(endpoints Endpoints) http.Handler {
+	return httptransport.NewServer(
+		endpoints.CompleteTodoEndpoint,
 		decodeCompleteTodoRequest,
 		encodeResponse,
 	)
-
-	r.Handle("/signup", signupHandler).Methods("POST")
-	r.Handle("/login", loginHandler).Methods("POST")
-	r.Handle("/validate", validateTokenHandler).Methods("POST", "GET")
-	r.Handle("/todos", createTodoHandler).Methods("POST")
-	r.Handle("/todos", listTodosHandler).Methods("GET")
-	r.Handle("/todos/{id}/complete", completeTodoHandler).Methods("POST")
-
-	return r
 }

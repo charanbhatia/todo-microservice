@@ -134,6 +134,54 @@ curl http://localhost:8080/metrics
 - `auth_todo_todo_service_request_count`: Todo service request counter
 - `auth_todo_todo_service_request_latency_microseconds`: Todo service latency
 
+## Kubernetes Deployment
+
+### Build Docker Image
+
+```bash
+docker build -t todo-microservice:latest .
+```
+
+### Deploy to Kubernetes
+
+```bash
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+```
+
+### Check Deployment
+
+```bash
+kubectl get pods -n todo-microservice
+kubectl get svc -n todo-microservice
+```
+
+### Access Service
+
+For local clusters (minikube):
+```bash
+minikube service todo-microservice -n todo-microservice
+```
+
+For cloud providers, get the external IP:
+```bash
+kubectl get svc todo-microservice -n todo-microservice
+```
+
+### Scale Deployment
+
+```bash
+kubectl scale deployment todo-microservice --replicas=3 -n todo-microservice
+```
+
+## Kubernetes Configuration
+
+- **Deployment**: 2 replicas with liveness and readiness probes
+- **Service**: LoadBalancer type exposing port 80
+- **Resources**: 64Mi-128Mi memory, 100m-200m CPU per pod
+- **Namespace**: Isolated namespace for the service
+
 ## Future Enhancements
 
 - Replace in-memory storage with PostgreSQL or Redis

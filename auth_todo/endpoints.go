@@ -91,21 +91,31 @@ func makeCreateTodoEndpoint(svc TodoService) endpoint.Endpoint {
 
 type listTodosRequest struct {
 	UserID string `json:"user_id"`
+	Limit  int    `json:"limit"`
+	Offset int    `json:"offset"`
 }
 
 type listTodosResponse struct {
-	Todos []Todo `json:"todos,omitempty"`
-	Err   string `json:"error,omitempty"`
+	Todos  []Todo `json:"todos,omitempty"`
+	Total  int    `json:"total"`
+	Limit  int    `json:"limit"`
+	Offset int    `json:"offset"`
+	Err    string `json:"error,omitempty"`
 }
 
 func makeListTodosEndpoint(svc TodoService) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(listTodosRequest)
-		todos, err := svc.ListTodos(ctx, req.UserID)
+		todos, total, err := svc.ListTodos(ctx, req.UserID, req.Limit, req.Offset)
 		if err != nil {
 			return listTodosResponse{Err: err.Error()}, nil
 		}
-		return listTodosResponse{Todos: todos}, nil
+		return listTodosResponse{
+			Todos:  todos,
+			Total:  total,
+			Limit:  req.Limit,
+			Offset: req.Offset,
+		}, nil
 	}
 }
 

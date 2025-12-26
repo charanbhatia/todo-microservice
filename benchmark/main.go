@@ -60,7 +60,7 @@ func benchmarkSignup(baseURL string, concurrency, totalRequests int) BenchmarkRe
 
 func benchmarkLogin(baseURL string, concurrency, totalRequests int) BenchmarkResult {
 	http.Post(baseURL+"/signup", "application/json", bytes.NewBuffer([]byte(`{"email":"bench@example.com","password":"pass123"}`)))
-	
+
 	return runBenchmark(baseURL+"/login", "POST", func(i int) []byte {
 		data := map[string]string{
 			"email":    "bench@example.com",
@@ -83,7 +83,7 @@ func benchmarkCreateTodo(baseURL string, concurrency, totalRequests int) Benchma
 }
 
 func benchmarkListTodos(baseURL string, concurrency, totalRequests int) BenchmarkResult {
-	return runBenchmark(baseURL+"/todos?user_id=user_1", "GET", func(i int) []byte {
+	return runBenchmark(baseURL+"/todos?user_id=user_1&limit=50&offset=0", "GET", func(i int) []byte {
 		return nil
 	}, concurrency, totalRequests)
 }
@@ -91,28 +91,28 @@ func benchmarkListTodos(baseURL string, concurrency, totalRequests int) Benchmar
 func runBenchmark(url, method string, bodyGenerator func(int) []byte, concurrency, totalRequests int) BenchmarkResult {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	
+
 	successCount := 0
 	failedCount := 0
 	var totalLatency time.Duration
 	minLatency := time.Hour
 	maxLatency := time.Duration(0)
-	
+
 	requestsPerWorker := totalRequests / concurrency
 	startTime := time.Now()
-	
+
 	for i := 0; i < concurrency; i++ {
 		wg.Add(1)
 		go func(workerID int) {
 			defer wg.Done()
 			client := &http.Client{Timeout: 10 * time.Second}
-			
+
 			for j := 0; j < requestsPerWorker; j++ {
 				requestStart := time.Now()
-				
+
 				var req *http.Request
 				var err error
-				
+
 				body := bodyGenerator(workerID*requestsPerWorker + j)
 				if body != nil {
 					req, err = http.NewRequest(method, url, bytes.NewBuffer(body))
@@ -120,17 +120,17 @@ func runBenchmark(url, method string, bodyGenerator func(int) []byte, concurrenc
 				} else {
 					req, err = http.NewRequest(method, url, nil)
 				}
-				
+
 				if err != nil {
 					mu.Lock()
 					failedCount++
 					mu.Unlock()
 					continue
 				}
-				
+
 				resp, err := client.Do(req)
 				latency := time.Since(requestStart)
-				
+
 				mu.Lock()
 				totalLatency += latency
 				if latency < minLatency {
@@ -139,24 +139,24 @@ func runBenchmark(url, method string, bodyGenerator func(int) []byte, concurrenc
 				if latency > maxLatency {
 					maxLatency = latency
 				}
-				
+
 				if err != nil || resp.StatusCode >= 400 {
 					failedCount++
 				} else {
 					successCount++
 				}
 				mu.Unlock()
-				
+
 				if resp != nil {
 					resp.Body.Close()
 				}
 			}
 		}(i)
 	}
-	
+
 	wg.Wait()
 	duration := time.Since(startTime)
-	
+
 	return BenchmarkResult{
 		TotalRequests:   totalRequests,
 		SuccessRequests: successCount,

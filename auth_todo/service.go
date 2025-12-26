@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 )
@@ -24,19 +25,19 @@ type AuthService interface {
 
 type TodoService interface {
 	CreateTodo(ctx context.Context, userID, text string) (todoID string, err error)
-	ListTodos(ctx context.Context, userID string) ([]Todo, error)
+	ListTodos(ctx context.Context, userID string, limit, offset int) (todos []Todo, total int, err error)
 	CompleteTodo(ctx context.Context, userID, todoID string) error
 }
 
 var (
-	ErrUserExists       = errors.New("user already exists")
+	ErrUserExists         = errors.New("user already exists")
 	ErrInvalidCredentials = errors.New("invalid credentials")
-	ErrInvalidToken     = errors.New("invalid token")
-	ErrTodoNotFound     = errors.New("todo not found")
-	ErrUnauthorized     = errors.New("unauthorized")
-	ErrEmptyEmail       = errors.New("email cannot be empty")
-	ErrEmptyPassword    = errors.New("password cannot be empty")
-	ErrEmptyText        = errors.New("todo text cannot be empty")
+	ErrInvalidToken       = errors.New("invalid token")
+	ErrTodoNotFound       = errors.New("todo not found")
+	ErrUnauthorized       = errors.New("unauthorized")
+	ErrEmptyEmail         = errors.New("email cannot be empty")
+	ErrEmptyPassword      = errors.New("password cannot be empty")
+	ErrEmptyText          = errors.New("todo text cannot be empty")
 )
 
 type user struct {
@@ -102,7 +103,7 @@ func (s *authService) Login(ctx context.Context, email, password string) (string
 	}
 
 	token := fmt.Sprintf("token_%s_%d", u.ID, time.Now().Unix())
-	
+
 	s.mu.Lock()
 	s.tokens[token] = u.ID
 	s.mu.Unlock()
@@ -123,14 +124,16 @@ func (s *authService) ValidateToken(ctx context.Context, token string) (string, 
 }
 
 type todoService struct {
-	mu      sync.RWMutex
-	todos   map[string]Todo
-	counter int
+	mu          sync.RWMutex
+	todosByUser map[string][]Todo
+	todosById   map[string]Todo
+	counter     int
 }
 
 func NewTodoService() TodoService {
 	return &todoService{
-		todos: make(map[string]Todo),
+		todosByUser: make(map[string][]Todo),
+		todosById:   make(map[string]Todo),
 	}
 }
 
@@ -151,30 +154,57 @@ func (s *todoService) CreateTodo(ctx context.Context, userID, text string) (stri
 		Completed: false,
 		CreatedAt: time.Now(),
 	}
-	s.todos[todoID] = todo
+	s.todosById[todoID] = todo
+	s.todosByUser[userID] = append(s.todosByUser[userID], todo)
 
 	return todoID, nil
 }
 
-func (s *todoService) ListTodos(ctx context.Context, userID string) ([]Todo, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	var result []Todo
-	for _, todo := range s.todos {
-		if todo.UserID == userID {
-			result = append(result, todo)
-		}
+func (s *todoService) ListTodos(ctx context.Context, userID string, limit, offset int) ([]Todo, int, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
 	}
 
-	return result, nil
+	s.mu.RLock()
+	userTodos, exists := s.todosByUser[userID]
+	if !exists || len(userTodos) == 0 {
+		s.mu.RUnlock()
+		return []Todo{}, 0, nil
+	}
+	allTodos := make([]Todo, len(userTodos))
+	copy(allTodos, userTodos)
+	s.mu.RUnlock()
+
+	sort.Slice(allTodos, func(i, j int) bool {
+		return allTodos[i].CreatedAt.After(allTodos[j].CreatedAt)
+	})
+
+	total := len(allTodos)
+
+	if offset >= total {
+		return []Todo{}, total, nil
+	}
+
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+
+	result := allTodos[offset:end]
+	return result, total, nil
 }
 
 func (s *todoService) CompleteTodo(ctx context.Context, userID, todoID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	todo, exists := s.todos[todoID]
+	todo, exists := s.todosById[todoID]
 	if !exists {
 		return ErrTodoNotFound
 	}
@@ -184,7 +214,16 @@ func (s *todoService) CompleteTodo(ctx context.Context, userID, todoID string) e
 	}
 
 	todo.Completed = true
-	s.todos[todoID] = todo
+	s.todosById[todoID] = todo
+	
+	userTodos := s.todosByUser[userID]
+	for i, t := range userTodos {
+		if t.ID == todoID {
+			userTodos[i].Completed = true
+			s.todosByUser[userID] = userTodos
+			break
+		}
+	}
 
 	return nil
 }

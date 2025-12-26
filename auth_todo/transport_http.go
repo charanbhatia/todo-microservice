@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
@@ -47,20 +48,38 @@ func decodeCreateTodoRequest(_ context.Context, r *http.Request) (interface{}, e
 
 func decodeListTodosRequest(_ context.Context, r *http.Request) (interface{}, error) {
 	userID := r.URL.Query().Get("user_id")
-	return listTodosRequest{UserID: userID}, nil
+	limit := 50
+	offset := 0
+
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil {
+			limit = parsed
+		}
+	}
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if parsed, err := strconv.Atoi(o); err == nil {
+			offset = parsed
+		}
+	}
+
+	return listTodosRequest{
+		UserID: userID,
+		Limit:  limit,
+		Offset: offset,
+	}, nil
 }
 
 func decodeCompleteTodoRequest(_ context.Context, r *http.Request) (interface{}, error) {
 	vars := mux.Vars(r)
 	todoID := vars["id"]
-	
+
 	var req struct {
 		UserID string `json:"user_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err
 	}
-	
+
 	return completeTodoRequest{
 		UserID: req.UserID,
 		TodoID: todoID,

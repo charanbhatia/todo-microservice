@@ -70,12 +70,15 @@ func TestTodoService(t *testing.T) {
 	}
 
 	// Test ListTodos
-	todos, err := svc.ListTodos(ctx, userID)
+	todos, total, err := svc.ListTodos(ctx, userID, 50, 0)
 	if err != nil {
 		t.Fatalf("ListTodos failed: %v", err)
 	}
 	if len(todos) != 1 {
 		t.Fatalf("Expected 1 todo, got %d", len(todos))
+	}
+	if total != 1 {
+		t.Fatalf("Expected total 1, got %d", total)
 	}
 	if todos[0].Text != "Buy groceries" {
 		t.Fatalf("Expected 'Buy groceries', got '%s'", todos[0].Text)
@@ -88,7 +91,7 @@ func TestTodoService(t *testing.T) {
 	}
 
 	// Verify completion
-	todos, _ = svc.ListTodos(ctx, userID)
+	todos, _, _ = svc.ListTodos(ctx, userID, 50, 0)
 	if !todos[0].Completed {
 		t.Fatal("Expected todo to be completed")
 	}

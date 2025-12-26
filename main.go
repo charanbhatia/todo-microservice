@@ -3,11 +3,12 @@ package main
 import (
 	"net/http"
 	"os"
+	"time"
 
 	"todo-microservice/auth_todo"
 
-	kitlog "github.com/go-kit/log"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -19,14 +20,14 @@ func main() {
 	logger = kitlog.With(logger, "caller", kitlog.DefaultCaller)
 
 	fieldKeys := []string{"method"}
-	
+
 	authRequestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
 		Namespace: "auth_todo",
 		Subsystem: "auth_service",
 		Name:      "request_count",
 		Help:      "Number of requests received.",
 	}, fieldKeys)
-	
+
 	authRequestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace: "auth_todo",
 		Subsystem: "auth_service",
@@ -40,7 +41,7 @@ func main() {
 		Name:      "request_count",
 		Help:      "Number of requests received.",
 	}, fieldKeys)
-	
+
 	todoRequestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace: "auth_todo",
 		Subsystem: "todo_service",
@@ -55,6 +56,7 @@ func main() {
 
 	var todoSvc auth_todo.TodoService
 	todoSvc = auth_todo.NewTodoService()
+	todoSvc = auth_todo.NewCachedTodoService(30*time.Second, todoSvc)
 	todoSvc = auth_todo.NewLoggingTodoMiddleware(logger, todoSvc)
 	todoSvc = auth_todo.NewInstrumentingTodoMiddleware(todoRequestCount, todoRequestLatency, todoSvc)
 

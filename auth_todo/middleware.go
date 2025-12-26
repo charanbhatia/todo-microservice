@@ -121,17 +121,20 @@ func (mw *loggingTodoMiddleware) CreateTodo(ctx context.Context, userID, text st
 	return mw.next.CreateTodo(ctx, userID, text)
 }
 
-func (mw *loggingTodoMiddleware) ListTodos(ctx context.Context, userID string) (todos []Todo, err error) {
+func (mw *loggingTodoMiddleware) ListTodos(ctx context.Context, userID string, limit, offset int) (todos []Todo, total int, err error) {
 	defer func(begin time.Time) {
 		mw.logger.Log(
 			"method", "ListTodos",
 			"user_id", userID,
+			"limit", limit,
+			"offset", offset,
 			"count", len(todos),
+			"total", total,
 			"err", err,
 			"took", time.Since(begin),
 		)
 	}(time.Now())
-	return mw.next.ListTodos(ctx, userID)
+	return mw.next.ListTodos(ctx, userID, limit, offset)
 }
 
 func (mw *loggingTodoMiddleware) CompleteTodo(ctx context.Context, userID, todoID string) (err error) {
@@ -169,12 +172,12 @@ func (mw *instrumentingTodoMiddleware) CreateTodo(ctx context.Context, userID, t
 	return mw.next.CreateTodo(ctx, userID, text)
 }
 
-func (mw *instrumentingTodoMiddleware) ListTodos(ctx context.Context, userID string) ([]Todo, error) {
+func (mw *instrumentingTodoMiddleware) ListTodos(ctx context.Context, userID string, limit, offset int) ([]Todo, int, error) {
 	defer func(begin time.Time) {
 		mw.requestCount.With("method", "ListTodos").Add(1)
 		mw.requestLatency.With("method", "ListTodos").Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return mw.next.ListTodos(ctx, userID)
+	return mw.next.ListTodos(ctx, userID, limit, offset)
 }
 
 func (mw *instrumentingTodoMiddleware) CompleteTodo(ctx context.Context, userID, todoID string) error {

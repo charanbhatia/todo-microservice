@@ -148,6 +148,15 @@ docker build -t todo-microservice:latest .
 kubectl apply -f k8s/namespace.yaml
 kubectl apply -f k8s/deployment.yaml
 kubectl apply -f k8s/service.yaml
+kubectl apply -f k8s/prometheus-config.yaml
+kubectl apply -f k8s/prometheus.yaml
+kubectl apply -f k8s/grafana.yaml
+```
+
+### Load Image to Kind Cluster
+
+```bash
+kind load docker-image todo-microservice:latest --name local2
 ```
 
 ### Check Deployment
@@ -174,6 +183,26 @@ kubectl get svc todo-microservice -n todo-microservice
 ```bash
 kubectl scale deployment todo-microservice --replicas=3 -n todo-microservice
 ```
+
+### Access Prometheus and Grafana
+
+**Prometheus**: http://localhost:30090
+**Grafana**: http://localhost:30030 (admin/admin)
+
+In Grafana:
+1. Add Prometheus data source: http://prometheus:9090
+2. Import dashboard or create custom panels for metrics
+
+## Benchmarking
+
+Run the benchmark tool:
+
+```bash
+cd benchmark
+go run main.go
+```
+
+This will test signup, login, create todo, and list todos endpoints with configurable concurrency and request count.
 
 ## Kubernetes Configuration
 

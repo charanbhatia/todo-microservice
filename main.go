@@ -11,7 +11,6 @@ import (
 	"github.com/gorilla/mux"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"golang.org/x/time/rate"
 )
 
 func main() {
@@ -60,10 +59,6 @@ func main() {
 	todoSvc = auth_todo.NewInstrumentingTodoMiddleware(todoRequestCount, todoRequestLatency, todoSvc)
 
 	endpoints := auth_todo.MakeEndpoints(authSvc, todoSvc)
-
-	rateLimiter := auth_todo.NewRateLimitMiddleware(rate.Limit(10), 20)
-	endpoints.SignupEndpoint = rateLimiter(endpoints.SignupEndpoint)
-	endpoints.CreateTodoEndpoint = rateLimiter(endpoints.CreateTodoEndpoint)
 
 	r := mux.NewRouter()
 
